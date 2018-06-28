@@ -28,17 +28,16 @@ class LayerNormalization(function_node.FunctionNode):
 
         type_check.expect(
             x_type.dtype.kind == 'f',
-            x_type.ndim == 2,
-            gamma_type.ndim == 1,
-            beta_type.ndim == 1,
+            x_type.ndim >= 2,
             gamma_type.dtype == x_type.dtype,
             beta_type.dtype == x_type.dtype,
             gamma_type.shape == beta_type.shape,
+            x_type.shape[1:] == gamma_type.shape,
         )
 
     def _compute(self, xp, x):
         # xp: numpy, cupy, or chainer.functions
-        mu = xp.mean(x, axis=1, keepdims=True)
+        mu = xp.mean(x, axis=range(x.ndim)[1:], keepdims=True)[0]
         x_mu = x - _broadcast_to(xp, mu, x.shape)
         squ_x_mu = xp.square(x_mu)
         var = xp.mean(squ_x_mu, axis=1, keepdims=True)
@@ -100,11 +99,11 @@ def layer_normalization(x, gamma, beta, eps=1e-5):
 
     Args:
         x (~chainer.Variable): Batch vectors.
-            Shape of this value must be `(batch_size, unit_size)`,
+            Shape of this value must be `(batch_size, ...)`,
             e.g., the output of :func:`~chainer.functions.linear`.
         gamma (~chainer.Variable): Scaling vectors.
         beta (~chainer.Variable): Shifting vectors.
-
+        eps (float): Epsilon value for numerical stability.
 
     Returns:
         ~chainer.Variable: The output variable which has the same shape
